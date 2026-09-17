@@ -52,3 +52,29 @@ def add_document(filename: str, pages: list[tuple[int, str]]) -> dict:
 
 def stats() -> dict:
     return {"total_chunks": _collection.count()}
+
+def query_chunks(question: str, top_k: int = 5, doc_ids: list[str] | None = None) -> list[dict]:
+    where = {"doc_id": {"$in": doc_ids}} if doc_ids else None
+
+    results = _collection.query(
+        query_embeddings=embed([question]),
+        n_results=top_k,
+        where=where,
+    )
+
+    if not results["documents"] or not results["documents"][0]:
+        return []
+
+    return [
+        {
+            "text": doc,
+            "source": meta["source"],
+            "page": meta["page"],
+            "distance": dist,
+        }
+        for doc, meta, dist in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        )
+    ]

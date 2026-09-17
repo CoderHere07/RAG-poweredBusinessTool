@@ -2,10 +2,12 @@ import os
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from config import settings
 from extractors import extract
-from store import stats, add_document
+from store import stats, add_document, query_chunks
+
 
 app = FastAPI(title="DocQA RAG Service", version="0.1.0")
 
@@ -16,6 +18,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class QueryRequest(BaseModel):
+    question: str
+    top_k: int = 5
+    doc_ids: list[str] | None = None
 
 
 @app.get("/health")
@@ -37,3 +44,8 @@ async def ingest(file: UploadFile = File(...)):
     pages = extract(file.filename, data)
     result = add_document(file.filename, pages)
     return result
+
+@app.post("/query")
+def query(req: QueryRequest):
+    chunks = query_chunks(req.question, top_k=req.top_k, doc_ids=req.doc_ids)
+    return {"chunks": chunks}
