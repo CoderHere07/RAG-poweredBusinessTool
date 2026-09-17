@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from config import settings
 from extractors import extract, UnsupportedFileType, ExtractionError
-from store import add_document, stats, query_chunks
+from store import add_document, stats, query_chunks, list_documents, delete_document
 
 app = FastAPI(title="DocQA RAG Service", version="0.1.0")
 
@@ -19,6 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class QueryRequest(BaseModel):
+    question: str
+    top_k: int = 5
+    doc_ids: list[str] | None = None
+
 
 @app.get("/health")
 def health():
@@ -28,6 +33,10 @@ def health():
 @app.get("/stats")
 def get_stats():
     return stats()
+
+@app.get("/documents")
+def get_documents():
+    return {"documents": list_documents()}
 
 
 @app.post("/ingest")
@@ -65,12 +74,6 @@ async def ingest(file: UploadFile = File(...)):
     return result
 
 
-class QueryRequest(BaseModel):
-    question: str
-    top_k: int = 5
-    doc_ids: list[str] | None = None
-
-
 @app.post("/query")
 def query(req: QueryRequest):
     if not req.question.strip():
@@ -78,3 +81,14 @@ def query(req: QueryRequest):
 
     chunks = query_chunks(req.question, top_k=req.top_k, doc_ids=req.doc_ids)
     return {"chunks": chunks, "has_context": len(chunks) > 0}
+
+
+@app.delete("/documents/{doc_id}")
+def remove_document(doc_id: str):
+    deleted_count = delete_document(doc_id)
+    if deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "not_found", "message": f"No document found with id {doc_id}"},
+        )
+    return {"doc_id": doc_id, "chunks_deleted": deleted_count}

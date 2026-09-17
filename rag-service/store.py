@@ -75,3 +75,28 @@ def query_chunks(question: str, top_k: int = 5, doc_ids: list[str] | None = None
     ]
 
     return [c for c in chunks if c["distance"] < settings.relevance_threshold]
+
+def list_documents() -> list[dict]:
+    """Group stored chunks by doc_id to reconstruct a document-level view."""
+    all_items = _collection.get(include=["metadatas"])
+
+    docs: dict[str, dict] = {}
+    for meta in all_items["metadatas"]:
+        doc_id = meta["doc_id"]
+        if doc_id not in docs:
+            docs[doc_id] = {"doc_id": doc_id, "filename": meta["source"], "chunks": 0}
+        docs[doc_id]["chunks"] += 1
+
+    return list(docs.values())
+
+
+def delete_document(doc_id: str) -> int:
+    """Delete every chunk belonging to a document. Returns count deleted."""
+    matching = _collection.get(where={"doc_id": doc_id}, include=[])
+    count = len(matching["ids"])
+
+    if count == 0:
+        return 0
+
+    _collection.delete(where={"doc_id": doc_id})
+    return count
