@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     chunk_size: int = 800
     chunk_overlap: int = 150
     max_file_size_mb: int = 10
+    relevance_threshold: float = 0.65   # cosine distance; lower = stricter
 
     class Config:
         env_file = ".env"

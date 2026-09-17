@@ -65,16 +65,13 @@ def query_chunks(question: str, top_k: int = 5, doc_ids: list[str] | None = None
     if not results["documents"] or not results["documents"][0]:
         return []
 
-    return [
-        {
-            "text": doc,
-            "source": meta["source"],
-            "page": meta["page"],
-            "distance": dist,
-        }
+    chunks = [
+        {"text": doc, "source": meta["source"], "page": meta["page"], "distance": dist}
         for doc, meta, dist in zip(
             results["documents"][0],
             results["metadatas"][0],
             results["distances"][0],
         )
     ]
+
+    return [c for c in chunks if c["distance"] < settings.relevance_threshold]
