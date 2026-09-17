@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+import os
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from store import stats
+from extractors import extract
+from store import stats, add_document
 
 app = FastAPI(title="DocQA RAG Service", version="0.1.0")
 
@@ -27,3 +30,10 @@ def health():
 @app.get("/stats")
 def get_stats():
     return stats()
+
+@app.post("/ingest")
+async def ingest(file: UploadFile = File(...)):
+    data = await file.read()
+    pages = extract(file.filename, data)
+    result = add_document(file.filename, pages)
+    return result
