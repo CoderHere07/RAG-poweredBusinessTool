@@ -20,6 +20,12 @@ export default function ChatPanel({ selectedIds }) {
     const question = input.trim();
     if (!question || isStreaming) return;
 
+    // History = prior completed turns only, formatted for the API.
+    // Excludes the in-progress placeholder we're about to push below.
+    const history = messages
+      .filter((m) => !m.isStreaming)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     setInput('');
     setActiveSource(null);
     setMessages((prev) => [
@@ -37,7 +43,7 @@ export default function ChatPanel({ selectedIds }) {
       });
     };
 
-    await ask(question, selectedIds, {
+    await ask(question, selectedIds, history, {
       onSources: (sources) => setCurrentSources(sources),
       onToken: (text) => appendToLastAssistant((last) => ({ content: last.content + text })),
       onDone: () => appendToLastAssistant(() => ({ isStreaming: false })),
@@ -51,7 +57,9 @@ export default function ChatPanel({ selectedIds }) {
       <div className="col-span-2 flex flex-col h-[500px] border border-gray-200 rounded-lg bg-gray-50">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 && (
-            <p className="text-sm text-gray-400 text-center mt-8">Ask a question about your documents.</p>
+            <p className="text-sm text-gray-400 text-center mt-8">
+              Ask a question about your documents.
+            </p>
           )}
           {messages.map((m, i) => (
             <ChatMessage

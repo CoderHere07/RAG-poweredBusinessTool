@@ -5,19 +5,21 @@ const API_URL = import.meta.env.VITE_API_URL;
 export function useChatStream() {
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const ask = useCallback(async (question, docIds, { onSources, onToken, onDone, onError }) => {
+  const ask = useCallback(async (question, docIds, history, { onSources, onToken, onDone, onError }) => {
     setIsStreaming(true);
 
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, docIds: docIds.length ? docIds : null }),
+        body: JSON.stringify({
+          question,
+          docIds: docIds.length ? docIds : null,
+          history,
+        }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
+      if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -29,7 +31,7 @@ export function useChatStream() {
 
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split('\n\n');
-        buffer = events.pop(); // last chunk may be incomplete — keep it for next read
+        buffer = events.pop();
 
         for (const raw of events) {
           const eventMatch = raw.match(/^event: (.+)$/m);
