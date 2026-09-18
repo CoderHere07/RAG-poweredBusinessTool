@@ -1,22 +1,49 @@
 import { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
+import { useChatStream } from '../hooks/useChatStream';
 
 export default function ChatPanel({ selectedIds }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const bottomRef = useRef(null);
+  const { ask, isStreaming } = useChatStream();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const question = input.trim();
+    if (!question || isStreaming) return;
 
-    setMessages((prev) => [...prev, { role: 'user', content: input }]);
     setInput('');
-    // Actual streaming call wired in commit 20 — for now just echo, to verify rendering.
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: question },
+      { role: 'assistant', content: '', isStreaming: true },
+    ]);
+
+    const appendToLastAssistant = (updater) => {
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next[next.length - 1];
+        next[next.length - 1] = { ...last, ...updater(last) };
+        return next;
+      });
+    };
+
+    await ask(question, selectedIds, {
+      onToken: (text) => {
+        appendToLastAssistant((last) => ({ content: last.content + text }));
+      },
+      onDone: () => {
+        appendToLastAssistant(() => ({ isStreaming: false }));
+      },
+      onError: (message) => {
+        appendToLastAssistant(() => ({ content: `⚠️ ${message}`, isStreaming: false }));
+      },
+    });
   };
 
   return (
@@ -26,7 +53,7 @@ export default function ChatPanel({ selectedIds }) {
           <p className="text-sm text-gray-400 text-center mt-8">Ask a question about your documents.</p>
         )}
         {messages.map((m, i) => (
-          <ChatMessage key={i} role={m.role} content={m.content} />
+          <ChatMessage key={i} role={m.role} content={m.content} isStreaming={m.isStreaming} />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -36,13 +63,15 @@ export default function ChatPanel({ selectedIds }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a question…"
-          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          disabled={isStreaming}
+          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
         />
         <button
           type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
+          disabled={isStreaming}
+          className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:bg-gray-300"
         >
-          Send
+          {isStreaming ? '…' : 'Send'}
         </button>
       </form>
     </div>
