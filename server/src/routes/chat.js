@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { queryChunks } from '../services/ragClient.js';
 import { buildSystemPrompt } from '../prompt.js';
 import { openrouter, CHAT_MODEL } from '../services/openrouterClient.js';
+import { logUsage } from '../services/usageLogger.js';
 
 const router = Router();
 
@@ -50,7 +51,8 @@ router.post('/', async (req, res) => {
       }
     }
 
-    send('done', { usage });
+    const loggedUsage = logUsage(question, usage);
+    send('done', { usage: loggedUsage });
     res.end();
   } catch (err) {
     send('error', { message: err.message });

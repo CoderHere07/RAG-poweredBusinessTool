@@ -9,5 +9,9 @@ export function logUsage(question, usage) {
     `in=${usage.prompt_tokens} out=${usage.completion_tokens} cost=$0.00000 (free tier)`
   );
 
-  return { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, costUsd: 0 };
+  return {
+    promptTokens: usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
+    costUsd: 0,
+  };
 }
