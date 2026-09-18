@@ -11,7 +11,7 @@ function required(key) {
 
 export const config = {
   port: process.env.PORT || 3001,
-  openaiApiKey: required('OPENAI_API_KEY'),
+  openrouterApiKey: required('OPENROUTER_API_KEY'),
   ragServiceUrl: process.env.RAG_SERVICE_URL || 'http://localhost:8000',
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
 };
