@@ -3,6 +3,7 @@ import { queryChunks } from '../services/ragClient.js';
 import { buildSystemPrompt } from '../prompt.js';
 import { openrouter, CHAT_MODEL } from '../services/openrouterClient.js';
 import { logUsage } from '../services/usageLogger.js';
+import { compactHistory } from '../services/historyCompactor.js';
 
 const router = Router();
 
@@ -30,9 +31,13 @@ router.post('/', async (req, res) => {
 
     const systemPrompt = buildSystemPrompt(chunks);
 
+    // Compact older turns into a summary once history grows past the
+    // configured budget, keeping the most recent turns verbatim.
+    const compactedHistory = await compactHistory(history);
+
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
+      ...compactedHistory.map((turn) => ({ role: turn.role, content: turn.content })),
       { role: 'user', content: question },
     ];
 
@@ -45,10 +50,15 @@ router.post('/', async (req, res) => {
     });
 
     let usage = null;
+
     for await (const part of stream) {
       const delta = part.choices?.[0]?.delta?.content;
-      if (delta) send('token', { text: delta });
-      if (part.usage) usage = part.usage;
+      if (delta) {
+        send('token', { text: delta });
+      }
+      if (part.usage) {
+        usage = part.usage;
+      }
     }
 
     const loggedUsage = logUsage(question, usage);
