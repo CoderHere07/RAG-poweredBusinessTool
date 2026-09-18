@@ -1,19 +1,30 @@
 import { useState } from 'react';
 import UploadZone from './components/UploadZone';
+import DocumentList from './components/DocumentList';
 
 function App() {
-  const [lastUploaded, setLastUploaded] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <h1 className="text-2xl font-semibold text-gray-800 mb-6">DocQA</h1>
-      <div className="max-w-xl mx-auto">
-        <UploadZone onUploaded={setLastUploaded} />
-        {lastUploaded && (
-          <p className="text-sm text-green-600 mt-3">
-            Uploaded {lastUploaded.filename} — {lastUploaded.chunks} chunks indexed
-          </p>
-        )}
+      <div className="max-w-xl mx-auto space-y-6">
+        <UploadZone onUploaded={() => setRefreshKey((k) => k + 1)} />
+        <div>
+          <h2 className="text-sm font-medium text-gray-500 mb-2">Documents</h2>
+          <DocumentList
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            refreshKey={refreshKey}
+          />
+        </div>
       </div>
     </div>
   );
