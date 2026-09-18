@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
+import SourcesPanel from './SourcesPanel';
 import { useChatStream } from '../hooks/useChatStream';
 
 export default function ChatPanel({ selectedIds }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [currentSources, setCurrentSources] = useState([]);
+  const [activeSource, setActiveSource] = useState(null);
   const bottomRef = useRef(null);
   const { ask, isStreaming } = useChatStream();
 
@@ -18,6 +21,7 @@ export default function ChatPanel({ selectedIds }) {
     if (!question || isStreaming) return;
 
     setInput('');
+    setActiveSource(null);
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: question },
@@ -34,46 +38,55 @@ export default function ChatPanel({ selectedIds }) {
     };
 
     await ask(question, selectedIds, {
-      onToken: (text) => {
-        appendToLastAssistant((last) => ({ content: last.content + text }));
-      },
-      onDone: () => {
-        appendToLastAssistant(() => ({ isStreaming: false }));
-      },
-      onError: (message) => {
-        appendToLastAssistant(() => ({ content: `⚠️ ${message}`, isStreaming: false }));
-      },
+      onSources: (sources) => setCurrentSources(sources),
+      onToken: (text) => appendToLastAssistant((last) => ({ content: last.content + text })),
+      onDone: () => appendToLastAssistant(() => ({ isStreaming: false })),
+      onError: (message) =>
+        appendToLastAssistant(() => ({ content: `⚠️ ${message}`, isStreaming: false })),
     });
   };
 
   return (
-    <div className="flex flex-col h-[500px] border border-gray-200 rounded-lg bg-gray-50">
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
-          <p className="text-sm text-gray-400 text-center mt-8">Ask a question about your documents.</p>
-        )}
-        {messages.map((m, i) => (
-          <ChatMessage key={i} role={m.role} content={m.content} isStreaming={m.isStreaming} />
-        ))}
-        <div ref={bottomRef} />
+    <div className="grid grid-cols-3 gap-4">
+      <div className="col-span-2 flex flex-col h-[500px] border border-gray-200 rounded-lg bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 && (
+            <p className="text-sm text-gray-400 text-center mt-8">Ask a question about your documents.</p>
+          )}
+          {messages.map((m, i) => (
+            <ChatMessage
+              key={i}
+              role={m.role}
+              content={m.content}
+              isStreaming={m.isStreaming}
+              onCiteClick={setActiveSource}
+            />
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask a question…"
+            disabled={isStreaming}
+            className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
+          />
+          <button
+            type="submit"
+            disabled={isStreaming}
+            className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:bg-gray-300"
+          >
+            {isStreaming ? '…' : 'Send'}
+          </button>
+        </form>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question…"
-          disabled={isStreaming}
-          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
-        />
-        <button
-          type="submit"
-          disabled={isStreaming}
-          className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:bg-gray-300"
-        >
-          {isStreaming ? '…' : 'Send'}
-        </button>
-      </form>
+      <div>
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Sources</h3>
+        <SourcesPanel sources={currentSources} activeSource={activeSource} />
+      </div>
     </div>
   );
 }
