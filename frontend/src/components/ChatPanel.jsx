@@ -8,6 +8,7 @@ export default function ChatPanel({ selectedIds }) {
   const [input, setInput] = useState('');
   const [currentSources, setCurrentSources] = useState([]);
   const [activeSource, setActiveSource] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
   const bottomRef = useRef(null);
   const { ask, isStreaming } = useChatStream();
 
@@ -20,14 +21,13 @@ export default function ChatPanel({ selectedIds }) {
     const question = input.trim();
     if (!question || isStreaming) return;
 
-    // History = prior completed turns only, formatted for the API.
-    // Excludes the in-progress placeholder we're about to push below.
     const history = messages
       .filter((m) => !m.isStreaming)
       .map((m) => ({ role: m.role, content: m.content }));
 
     setInput('');
     setActiveSource(null);
+    setConnectionError(null);
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: question },
@@ -47,8 +47,12 @@ export default function ChatPanel({ selectedIds }) {
       onSources: (sources) => setCurrentSources(sources),
       onToken: (text) => appendToLastAssistant((last) => ({ content: last.content + text })),
       onDone: () => appendToLastAssistant(() => ({ isStreaming: false })),
-      onError: (message) =>
-        appendToLastAssistant(() => ({ content: `⚠️ ${message}`, isStreaming: false })),
+      onError: (message) => {
+        appendToLastAssistant(() => ({ content: `⚠️ ${message}`, isStreaming: false }));
+        if (message.includes('Failed to fetch') || message.includes('Request failed')) {
+          setConnectionError('Cannot reach the server — is it running?');
+        }
+      },
     });
   };
 
@@ -72,6 +76,10 @@ export default function ChatPanel({ selectedIds }) {
           ))}
           <div ref={bottomRef} />
         </div>
+
+        {connectionError && (
+          <p className="text-xs text-red-500 px-3 pb-1">{connectionError}</p>
+        )}
 
         <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 flex gap-2">
           <input
