@@ -1,4 +1,5 @@
 import re
+
 from config import settings
 
 _ABBREVIATIONS = r"(?<!\bMr\.)(?<!\bMrs\.)(?<!\bDr\.)(?<!\bInc\.)(?<!\bLtd\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\betc\.)"

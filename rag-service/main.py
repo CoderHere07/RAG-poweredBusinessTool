@@ -1,13 +1,14 @@
 import os
+
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from config import settings
-from extractors import extract, UnsupportedFileType, ExtractionError
-from store import add_document, stats, query_chunks, list_documents, delete_document
+from extractors import ExtractionError, UnsupportedFileType, extract
+from store import add_document, delete_document, list_documents, query_chunks, stats
 
 app = FastAPI(title="DocQA RAG Service", version="0.1.0")
 
@@ -40,7 +41,7 @@ def get_documents():
 
 
 @app.post("/ingest")
-async def ingest(file: UploadFile = File(...)):
+async def ingest(file: UploadFile = File(...)):  # noqa: B008 — FastAPI's documented dependency-injection pattern
     if not file.filename:
         raise HTTPException(status_code=400, detail={"error": "no_filename", "message": "Uploaded file has no name."})
 

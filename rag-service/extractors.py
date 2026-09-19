@@ -1,6 +1,8 @@
 import io
-from pypdf import PdfReader
+
 from docx import Document
+from pypdf import PdfReader
+
 
 class UnsupportedFileType(Exception):
     pass
@@ -13,7 +15,7 @@ def extract_pdf(data: bytes) -> list[tuple[int, str]]:
     """Returns [(page_number, text)] — 1-indexed pages for human-readable citations."""
     try:
         reader = PdfReader(io.BytesIO(data))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — intentionally broad: any parse failure should become ExtractionError
         raise ExtractionError(f"Could not read PDF: {e}")
 
     pages = []
@@ -29,7 +31,7 @@ def extract_docx(data: bytes) -> list[tuple[int, str]]:
     Tables are included because contracts/reports hide key data in them."""
     try:
         doc = Document(io.BytesIO(data))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — intentionally broad: any parse failure should become ExtractionError
         raise ExtractionError(f"Could not read DOCX: {e}")
 
     parts = [p.text for p in doc.paragraphs if p.text.strip()]

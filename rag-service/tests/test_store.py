@@ -1,6 +1,7 @@
 import pytest
-from store import query_chunks
+
 from config import settings
+from store import query_chunks
 
 
 @pytest.fixture(autouse=True)

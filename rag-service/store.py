@@ -1,8 +1,10 @@
 import uuid
+
 import chromadb
 from sentence_transformers import SentenceTransformer
-from config import settings
+
 from chunker import chunk_text
+from config import settings
 
 _client = chromadb.PersistentClient(path=settings.chroma_path)
 _collection = _client.get_or_create_collection(
