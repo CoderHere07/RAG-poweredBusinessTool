@@ -20,19 +20,26 @@ router.post('/', async (req, res) => {
   res.flushHeaders();
 
   const send = (event, data) => {
+    if (res.writableEnded) return;   // client already gone — don't write to a closed stream
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
+  const controller = new AbortController();
+  let clientDisconnected = false;
+
+  req.on('close', () => {
+    if (!res.writableEnded) {
+      clientDisconnected = true;
+      controller.abort();
+    }
+  });
+
   try {
-    // Fresh retrieval per question — history informs the conversation,
-    // not what gets searched for.
     const { chunks } = await queryChunks(question, { docIds });
+    if (clientDisconnected) return;
     send('sources', chunks);
 
     const systemPrompt = buildSystemPrompt(chunks);
-
-    // Compact older turns into a summary once history grows past the
-    // configured budget, keeping the most recent turns verbatim.
     const compactedHistory = await compactHistory(history);
 
     const messages = [
@@ -41,30 +48,36 @@ router.post('/', async (req, res) => {
       { role: 'user', content: question },
     ];
 
-    const stream = await openrouter.chat.completions.create({
-      model: CHAT_MODEL,
-      max_tokens: 1024,
-      stream: true,
-      stream_options: { include_usage: true },
-      messages,
-    });
+    const stream = await openrouter.chat.completions.create(
+      {
+        model: CHAT_MODEL,
+        max_tokens: 1024,
+        stream: true,
+        stream_options: { include_usage: true },
+        messages,
+      },
+      { signal: controller.signal }
+    );
 
     let usage = null;
 
     for await (const part of stream) {
+      if (clientDisconnected) break;
       const delta = part.choices?.[0]?.delta?.content;
-      if (delta) {
-        send('token', { text: delta });
-      }
-      if (part.usage) {
-        usage = part.usage;
-      }
+      if (delta) send('token', { text: delta });
+      if (part.usage) usage = part.usage;
     }
 
-    const loggedUsage = logUsage(question, usage);
-    send('done', { usage: loggedUsage });
-    res.end();
+    if (!clientDisconnected) {
+      const loggedUsage = logUsage(question, usage);
+      send('done', { usage: loggedUsage });
+      res.end();
+    }
   } catch (err) {
+    if (err.name === 'AbortError' || clientDisconnected) {
+      console.log(`[chat] Request aborted (client disconnected): "${question.slice(0, 50)}"`);
+      return;
+    }
     send('error', { message: err.message });
     res.end();
   }

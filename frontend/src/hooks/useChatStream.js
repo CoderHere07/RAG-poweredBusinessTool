@@ -1,22 +1,22 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export function useChatStream() {
   const [isStreaming, setIsStreaming] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const ask = useCallback(async (question, docIds, history, { onSources, onToken, onDone, onError }) => {
     setIsStreaming(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question,
-          docIds: docIds.length ? docIds : null,
-          history,
-        }),
+        body: JSON.stringify({ question, docIds: docIds.length ? docIds : null, history }),
+        signal: controller.signal,
       });
 
       if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
@@ -48,11 +48,17 @@ export function useChatStream() {
         }
       }
     } catch (err) {
-      onError?.(err.message);
+      if (err.name !== 'AbortError') {
+        onError?.(err.message);
+      }
     } finally {
       setIsStreaming(false);
     }
   }, []);
 
-  return { ask, isStreaming };
+  const cancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  return { ask, isStreaming, cancel };
 }
