@@ -1,0 +1,31 @@
+services:
+  rag-service:
+    build: ./rag-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/app/chroma_db
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - RAG_SERVICE_URL=http://rag-service:8000
+      - PORT=3001
+      - CORS_ORIGIN=http://localhost:5173
+    depends_on:
+      - rag-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  chroma-data:
