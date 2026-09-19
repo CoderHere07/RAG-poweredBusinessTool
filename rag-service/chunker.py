@@ -1,10 +1,8 @@
 import re
 from config import settings
 
-# Split on sentence-ending punctuation followed by whitespace,
-# but don't split on common abbreviations (Mr. Dr. Inc. e.g. etc.)
-_ABBREVIATIONS = r"(?<!\bMr)(?<!\bMrs)(?<!\bDr)(?<!\bInc)(?<!\bLtd)(?<!\be\.g)(?<!\bi\.e)(?<!\betc)"
-_SENTENCE_END = re.compile(rf"{_ABBREVIATIONS}(?<=[.!?])\s+")
+_ABBREVIATIONS = r"(?<!\bMr\.)(?<!\bMrs\.)(?<!\bDr\.)(?<!\bInc\.)(?<!\bLtd\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\betc\.)"
+_SENTENCE_END = re.compile(rf"(?<=[.!?]){_ABBREVIATIONS}\s+")
 
 
 def split_sentences(text: str) -> list[str]:
@@ -31,7 +29,6 @@ def chunk_text(
     current = ""
 
     for sentence in sentences:
-        # A single sentence longer than the chunk size: hard-split it.
         if len(sentence) > chunk_size:
             if current.strip():
                 chunks.append(current.strip())
